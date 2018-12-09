@@ -3,7 +3,128 @@
 #include <stdlib.h>
 
 #include <vector>
-#include <string>
+#include <list>
+#include <cstring>
+struct sPoint
+{
+    int x = 0;
+    int y = 0;
+
+    sPoint()
+        : x (0)
+        , y (0)
+    {}
+    sPoint(int xx, int yy)
+        : x (xx)
+        , y (yy)
+    {}
+    bool operator==(const sPoint &o)
+    {
+        return o.x == x && o.y == y;
+    }
+//    bool operator==(sPoint &o)
+//    {
+//        return o.x == x && o.y == y;
+//    }
+    int area() const
+    {
+        return x * y;
+    }
+    void print() const
+    {
+        printf("X=%d, Y=%d", x,y);
+    }
+};
+
+struct sRect
+{
+    int id;
+
+    sPoint tl;
+    sPoint br;
+    sPoint size;
+
+    sRect()
+        : id (0)
+    {}
+
+    bool operator==(const sRect &o)
+    {
+        return id == o.id || ((tl == o.tl) && (br == o.br) && (size == o.size));
+    }
+
+    sPoint overlap(const sRect &other)
+    {
+        auto interX = std::max(0, std::min(other.br.x, br.x) - std::max(other.tl.x, tl.x));
+        auto interY = std::max(0, std::min(other.br.y, br.y) - std::max(other.tl.y, tl.y));
+
+        return {interX, interY};
+    }
+
+    void construct(const sPoint &tl, const sPoint &size)
+    {
+        this->tl = tl;
+        this->size = size;
+        br.x = tl.x + size.x;
+        br.y = tl.y + size.y;
+    }
+
+    void print() const
+    {
+        printf("ID = %d\n", id);
+        printf("\tsize = ");
+        size.print();
+        printf("\n\tTL = ");
+        tl.print();
+        printf("\n\tBR = ");
+        br.print();
+        printf("\n");
+    }
+};
+
+size_t readline(FILE *f, char buffer[], size_t size, char delim = '\n')
+{
+    size_t read = 0;
+    size_t r    = 0;
+    do
+    {
+        r    = fread(buffer + read, 1, 1, f);
+        read += r;
+    }
+    while(read < size && r > 0 && buffer[read - 1] != delim);
+
+    buffer[read] = '\0';
+    return read;
+}
+
+int myatoi(char *buffer, long long size)
+{
+    int val = 0;
+    for (char *it = buffer; it != buffer + size; ++it)
+    {
+        if(isblank(*it))
+        {
+            continue;
+        }
+        else if(!isdigit(*it))
+        {
+            break;
+        }
+
+        val = 10*val + (*it - '0');
+    }
+    return val;
+}
+sPoint makePoint(char *buffer, long long size, char delim)
+{
+    char *second = strchr(buffer, delim);
+    sPoint p;
+    p.x = myatoi(buffer    , second - buffer);
+    p.y = myatoi(second + 1, size - (second - buffer) - 1);
+
+    return p;
+}
+
 int main()
 {
     FILE *f = fopen("input.txt", "r");
@@ -12,117 +133,69 @@ int main()
         printf("CANNOT OPEN");
         return 1;
     }
-    std::vector<std::string> lines;
-    std::vector<const std::string*> matches;
-    size_t matchpos = 0;
+    std::list<sRect> rects;
 
-    char buffer[32];
-
-    int counter['z' - 'a' + 1] = {};
-
-    int twos = 0;
-    int tres = 0;
-
+    char buffer[64];
     size_t read = 0;
-    size_t r = 0;
-    do
+//    #1 @ 1,3: 4x4
+    while((read = readline(f, buffer, sizeof(buffer)/sizeof(char))) > 0)
     {
-        read = 0;
-        do
+        if(buffer[0] == '#')
         {
-            r = fread(buffer + read, 1, 1, f);
-            read += r;
-        }
-        while(r > 0 && buffer[read-1] != '\n');
-
-        if(buffer[read-1] == '\n')
-        {
-            --read;
-        }
-
-//        printf("r=%d read=%d ", r, read);
-        if(read == 0)
-        {
-            break;
-        }
-        lines.push_back(std::string(buffer, read));
-        for (char *it = buffer; it != buffer + read; ++it)
-        {
-            ++counter[int(*it) - 'a'];
-//            printf("%c", *it);
-        }
-        int tmptwos = 0, tmptres = 0;
-        for(auto it = counter; it != (counter + sizeof(counter)/sizeof(int)); ++it)
-        {
-            if (*it == 3)
+            sRect rect;
+            char *it = strchr(buffer, '@');
+            char *it2 = strchr(it, ':');
+            if(it == NULL)
             {
-                ++tmptres;
+                printf("nenalezen @");
+                return -1;
             }
-            else if(*it == 2)
+            if(it2 == NULL)
             {
-                ++tmptwos;
+                printf("nenalezen :");
+                return -1;
             }
 
-            *it = 0;
+            rect.id   = atoi(buffer+1);
+            auto tl   = makePoint(it  + 1, it2-it, ',');
+            auto size = makePoint(it2 + 1, read - (it2 - buffer) - 1, 'x');
+            rect.construct(tl, size);
+
+            //rect.print();
+
+            rects.push_back(rect);
         }
-//        printf("  tmptwos='%d' tmptres='%d'\n", tmptwos, tmptres);
-        twos += (tmptwos > 0) ? 1 : 0;
-        tres += (tmptres > 0) ? 1 : 0;
     }
-    while(r > 0);
 
-    printf("PART1=%d*%d=%d\n", twos, tres, twos * tres);
-
-
-    for(const auto &line : lines)
+    int max = 0;
+    for (auto &r1 : rects)
     {
-        for(auto it = lines.cbegin(); it != lines.cend(); ++it)
+        for (auto &r2 : rects)
         {
-            int diffcount = 0;
-            size_t mp = 0;
-            if((*it).size() == line.size())
+            if(r1 == r2)
             {
-                for(size_t i = 0; i < line.size(); ++i)
-                {
-                    if(line[i] != (*it)[i])
-                    {
-                        ++ diffcount;
-                        mp = i;
-                    }
-                    if(diffcount > 1)
-                    {
-                        break;
-                    }
-                }
-                if(diffcount == 1)
-                {
-                    matches.push_back(&line);
-                    matchpos = mp;
-                }
+//                printf("same\n");
+                continue;
             }
+            auto res = r1.overlap(r2);
+
+//            res.print();
+            int i = res.x*res.y;
+            if(i > max)
+            {
+                max = i;
+                r1.print();
+                r2.print();
+                res.print();
+                goto end;
+            }
+//            printf(" -> %d \n", i);
         }
+//        printf("\n");
     }
-
-    std::cout << "matches: " << matches.size() << " " << matchpos << std::endl;
-    for(auto &m : matches)
-    {
-        std::cout << *m << std::endl;
-    }
-
-    std::cout << "\n\nPART2=" << matches.size() << " : " << matchpos << " - ";
-    auto &mf = matches.front();
-    for(size_t i = 0; i < mf->size(); ++i)
-    {
-        if(i != matchpos)
-        {
-            std::cout << (*mf)[i];
-        }
-    }
-
+end:
+    printf("MAX overlap = %d", max);
     std::cout << std::endl;
-
-
-
 
     return 0;
 }
