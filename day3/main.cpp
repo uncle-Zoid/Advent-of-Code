@@ -4,7 +4,13 @@
 
 #include <vector>
 #include <list>
+#include <set>
 #include <cstring>
+#include <algorithm>
+#include <numeric>
+
+#include <QImage>
+
 struct sPoint
 {
     int x = 0;
@@ -55,6 +61,10 @@ struct sRect
 
     sPoint overlap(const sRect &other)
     {
+        if(id == other.id)
+        {
+            return {0,0};
+        }
         auto interX = std::max(0, std::min(other.br.x, br.x) - std::max(other.tl.x, tl.x));
         auto interY = std::max(0, std::min(other.br.y, br.y) - std::max(other.tl.y, tl.y));
 
@@ -79,6 +89,17 @@ struct sRect
         printf("\n\tBR = ");
         br.print();
         printf("\n");
+    }
+    void print(uint8_t *matrix, int sizex, int sizey) const
+    {
+
+        for(int i = tl.x; i != br.x; ++i)
+        {
+            for(int j = tl.y; j != br.y; ++j)
+            {
+                matrix[sizex * j + i] += 1;
+            }
+        }
     }
 };
 
@@ -134,6 +155,7 @@ int main()
         return 1;
     }
     std::list<sRect> rects;
+    std::set<int> ids;
 
     char buffer[64];
     size_t read = 0;
@@ -158,44 +180,67 @@ int main()
 
             rect.id   = atoi(buffer+1);
             auto tl   = makePoint(it  + 1, it2-it, ',');
-            auto size = makePoint(it2 + 1, read - (it2 - buffer) - 1, 'x');
+            auto size = makePoint(it2 + 1, static_cast<long long>(read) - (it2 - buffer) - 1, 'x');
             rect.construct(tl, size);
 
+            ids.emplace(rect.id);
             //rect.print();
 
             rects.push_back(rect);
         }
     }
 
-    int max = 0;
     for (auto &r1 : rects)
     {
         for (auto &r2 : rects)
         {
-            if(r1 == r2)
+            if(r1.overlap(r2).area() > 0)
             {
-//                printf("same\n");
-                continue;
+                auto it = ids.find(r1.id);
+                if(it != ids.end())
+                {
+                    ids.erase(it);
+                }
+                it = ids.find(r2.id);
+                if(it != ids.end())
+                {
+                    ids.erase(it);
+                }
             }
-            auto res = r1.overlap(r2);
-
-//            res.print();
-            int i = res.x*res.y;
-            if(i > max)
-            {
-                max = i;
-                r1.print();
-                r2.print();
-                res.print();
-                goto end;
-            }
-//            printf(" -> %d \n", i);
         }
-//        printf("\n");
     }
-end:
-    printf("MAX overlap = %d", max);
-    std::cout << std::endl;
+
+    const int W = 1000;
+    const int H = 1000;
+    uint8_t matrix[W*H] = {0};
+    int sumarum = 0;
+    for(auto &a : rects)
+    {
+        a.print(matrix, W, H);
+    }
+
+    QImage im(W,H,QImage::Format_ARGB32);
+
+    for(size_t i = 0; i < sizeof(matrix)/sizeof (uint8_t); ++i)
+    {
+        int r = 0;
+        if(matrix[i] == 1)
+        {
+            r = 80;
+        }
+        else if(matrix[i] > 1)
+        {
+            r = 80 + 20*matrix[i];
+            matrix[i] = uint8_t(r > 255 ? 255 : r);
+            ++ sumarum;
+        }
+//        std::cout << "x="<<(i % 10) << "  y=" << (i / 10) << std::endl;
+        im.setPixelColor(int(i % W), int(i / W), QColor::fromRgb(r,0,0));
+    }
+    im.scaled(1000,1000).save("obrazek.png");
+
+    printf("PART1: sumarum: %d\n", sumarum);
+    printf("PART2: pocet=%d id=%d\n", ids.size(), *ids.begin());
 
     return 0;
 }
