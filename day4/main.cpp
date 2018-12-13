@@ -40,7 +40,7 @@ size_t readline(FILE *f, char buffer[], size_t size, char delim = '\n')
 }
 
 enum EAction {UNKNOWN, START, SLEEP, WAKE};
-const char *TEXTS[] {"co ja vim", "zacal sluzbu", "usnul", "vzbudil se"};
+static const char *TEXTS[] {"co ja vim", "zacal sluzbu", "usnul", "vzbudil se"};
 struct sGuardAction
 {
     int hodina;
@@ -75,9 +75,30 @@ struct sGuard
     int id = -1;
     std::set<sGuardAction> actions_;
 
-    bool wasSleepInMinute(int minute)
+    int sleepInMinute(uint8_t *line = nullptr)
     {
+        int sleep = 0;
+        int total = 0;
+        for (auto &a : actions_)
+        {
+            if(a.akce == SLEEP)
+            {
+                sleep = a.minuta;
+            }
+            if(a.akce == WAKE)
+            {
+                total += a.minuta - sleep;
+                if(line)
+                {
+                    for(auto *it = line+sleep-1; it != line+a.minuta-1; ++it)
+                    {
+                        *it = '*';
+                    }
+                }
+            }
+        }
 
+        return total;
     }
 
     void addAction(int hodina, int minuta, char *buffer)
@@ -104,7 +125,7 @@ struct sGuard
             printf("ty kokso, to jsem necekal: %s", buffer);
             exit(1);
         }
-        printf("pridavam akci ID=%d - %d:%d akce=%d\n", id, hodina, minuta, akce.akce);
+//        printf("pridavam akci ID=%d - %d:%d akce=%d\n", id, hodina, minuta, akce.akce);
         actions_.emplace(akce);
     }
 
@@ -121,18 +142,17 @@ struct sGuard
 int main()
 {
     std::map<int, sGuard> records_;
+    std::map<int, std::vector<std::map<int, sGuard>::iterator> >guards;
 
-    FILE *f = fopen("testinput.txt", "r");
+    FILE *f = fopen("input.txt", "r");
     if(f == NULL)
     {
         printf("CANNOT OPEN");
         return 1;
     }
-    std::set<int> guards;
 
     char buffer[64];
     size_t read = 0;
-//    #1 @ 1,3: 4x4
     int rok,mesic,den,hodina,minuta;
     while((read = readline(f, buffer, sizeof(buffer)/sizeof(char))) > 0)
     {        
@@ -153,26 +173,160 @@ int main()
             (*it).second.addAction(hodina, minuta, buffer + 19);
             gid = (*it).second.id;
         }
-        guards.insert(gid);
-
-
 //        std::cout << doy << "   " << rok<<" "<<mesic<<" "<<den<<" "<<hodina<<" "<<minuta<<" : ";
 //        std::cout << (buffer + 19) << std::endl;
     }
 
-    printf("\nGuadrs count: %d\n", guards.size());
-    printf("\n\n");
-    for(const auto& a : records_)
+    for(auto r = records_.begin(); r != records_.end(); ++r)
     {
-        printf("\nday %d: ", a.first);
-        a.second.print();
+        auto it = guards.find((*r).second.id);
+        if(it == guards.end())
+        {
+            guards[(*r).second.id] = std::vector<std::map<int, sGuard>::iterator> {r};
+        }
+        else
+        {
+            (*it).second.push_back(r);//guards.insert(std::make_pair((*(*it).second).second.id, r));
+        }
     }
 
+//    printf("\nGuadrs count: %d\n", guards.size());
+//    printf("\n\n");
+//    for(const auto& a : records_)
+//    {
+//        printf("\nday %d: ", a.first);
+//        a.second.print();
+//    }
+
+//    printf("\n\n");
+    int maxsleps= 0;
+    int maxsleptid = 0;
+    for(const auto& a : guards)
+    {
+        printf("\nGUARD %d: ", a.first);
+
+        int sum = 0;
+        for(auto it = a.second.begin(); it != a.second.end(); ++it)
+        {
+            sum += (*it)->second.sleepInMinute();
+            std::cout << (*it)->second.sleepInMinute() << " ";
+        }
+        if(sum > maxsleps)
+        {
+            maxsleps = sum;
+            maxsleptid = a.first;
+        }
+//            (*it)->second.print();
+    }
+
+    std::cout << "\n\nMAX slept guard: " << maxsleptid << " with " << maxsleps << std::endl<< std::endl<< std::endl;
     // roztridit pro jednotlive hlidace ve kterych dnech meli sluzbu
 
     // Find the guard that has the most minutes asleep. What minute does that guard spend asleep the most?
-//    printf("PART1: sumarum: %d\n", sumarum);
+    auto itg = guards.find(maxsleptid);
+    auto &litg = (*itg).second;
+
+    uint8_t **sleeparray = new uint8_t*[litg.size()];
+    for(size_t i = 0; i < litg.size(); ++i)
+    {
+        sleeparray[i] = new uint8_t[60];
+        memset(sleeparray[i], '.', 60);
+        litg[i]->second.sleepInMinute(*(sleeparray + i));
+//        std::cout << litg[i]->second.sleepInMinute(*(sleeparray + i)) << std::endl;
+    }
+
+    for(size_t i = 0; i < litg.size(); ++i)
+    {
+        printf("%.60s\n", sleeparray[i]);
+    }
+
+    int mostsleepminute=0;
+    int mostsleepminuteCount=0;
+
+    for(size_t i = 0; i < 60; ++i)
+    {
+        int s = 0;
+        for(size_t j = 0; j < litg.size(); ++j)
+        {
+            if(sleeparray[j][i] == '*')
+            {
+                ++s;
+            }
+        }
+        if(s > mostsleepminuteCount)
+        {
+            mostsleepminuteCount = s;
+            mostsleepminute = i;
+        }
+    }
+
+
+    printf("PART1: %d most sleep in %d (%d) => %d\n", maxsleptid, mostsleepminute+1, mostsleepminuteCount, maxsleptid * (mostsleepminute+1));
 //    printf("PART2: pocet=%d id=%d\n", ids.size(), *ids.begin());
 
+
+
+
+
+
+    // part 2
+    //In the example above, Guard #99 spent minute 45 asleep more than any other guard or minute - three times in total. (In all other cases, any guard spent any minute asleep at most twice.)
+
+    std::cout << "\n\nPART2\n\n";
+    {
+        int superhero = 0;
+        int superheroMinute = 0;
+        int superheroCount = 0;
+    for(auto &itg :guards)
+    {
+//        auto itg = guards.find(maxsleptid);
+        auto &litg = (itg).second;
+
+        uint8_t **sleeparray = new uint8_t*[litg.size()];
+        for(size_t i = 0; i < litg.size(); ++i)
+        {
+            sleeparray[i] = new uint8_t[60];
+            memset(sleeparray[i], '.', 60);
+            litg[i]->second.sleepInMinute(*(sleeparray + i));
+//            std::cout << litg[i]->second.sleepInMinute(*(sleeparray + i)) << std::endl;
+        }
+
+        for(size_t i = 0; i < litg.size(); ++i)
+        {
+            printf("%.60s\n", sleeparray[i]);
+        }
+
+        int mostsleepminute=0;
+        int mostsleepminuteCount=0;
+
+        for(size_t i = 0; i < 60; ++i)
+        {
+            int s = 0;
+            for(size_t j = 0; j < litg.size(); ++j)
+            {
+                if(sleeparray[j][i] == '*')
+                {
+                    ++s;
+                }
+            }
+            if(s > mostsleepminuteCount)
+            {
+                mostsleepminuteCount = s;
+                mostsleepminute = i;
+            }
+        }
+
+        if((mostsleepminuteCount) > superheroCount)
+        {
+            superheroMinute = mostsleepminute+1;
+
+            superhero = itg.first;
+            superheroCount = mostsleepminuteCount;
+        }
+        printf("%d most sleep in %d (%d) => %d\n\n", itg.first, mostsleepminute+1, mostsleepminuteCount, itg.first * (mostsleepminute+1));
+    }
+
+    printf("\n\nPART2 superhero:%d most sleep in %d (%d) => %d\n", superhero, superheroMinute, superheroCount, superhero * superheroMinute);
+    }
     return 0;
 }
