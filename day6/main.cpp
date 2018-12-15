@@ -8,6 +8,8 @@
 #include <map>
 #include <set>
 
+#include <QImage>
+
 size_t readline(FILE *f, char buffer[], size_t size, char delim = '\n')
 {
     size_t read = 0;
@@ -63,11 +65,12 @@ struct sList
 
 void print(const size_t x, const size_t y, char *matrix)
 {
+    return;
     for(size_t i = 0; i < x; ++i)
     {
         for(size_t j = 0; j < y; ++j)
         {
-            printf("%c", *((matrix + i*y) + j));
+            printf("%d", *((matrix + i*y) + j));
         }
         printf("\n");
     }
@@ -91,7 +94,10 @@ bool isLimit(const sPoint &point, int max)
 
 int main()
 {
-    FILE *f = fopen("testinput.txt", "r");
+    FILE *f = fopen("input.txt", "r");
+    const size_t SIZE = 400;
+//    FILE *f = fopen("testinput.txt", "r");
+//    const size_t SIZE = 10;//400;
     if(f == NULL)
     {
         printf("CANNOT OPEN");
@@ -100,14 +106,13 @@ int main()
 
     std::vector<sPoint> points;
 
-    const size_t SIZE = 10;
     char matrix[SIZE][SIZE];
-    memset(matrix, '.', SIZE*SIZE);
+    memset(matrix, '\0', SIZE*SIZE);
 
     char buffer[64];
     size_t read = 0;
     int x,y;
-    char counter = 'A';
+    char counter = 1;//'A';
     while((read = readline(f, buffer, sizeof(buffer)/sizeof(char))) > 0)
     {
         printf("%s\n", buffer);
@@ -119,6 +124,9 @@ int main()
 
     print(SIZE, SIZE, (char*)matrix);
 
+    QImage im(SIZE,SIZE,QImage::Format_ARGB32);
+    im.fill(Qt::gray);
+
 
     for(int i = 0; i < SIZE; ++i)
     {
@@ -128,15 +136,12 @@ int main()
                 continue;
 
             std::multimap<int, const sPoint *> distances;
-            int minDist = 1e9;
-            const sPoint *point = nullptr;
             for(const auto &p : points)
             {
-
                 int d= p.manhatan({j,i});
-
                 distances.insert(std::make_pair(d, &p));
             }
+
             int min = 1e9;
             for(auto &a : distances)
             {
@@ -148,15 +153,20 @@ int main()
             if(distances.count(min) <= 1)
             {
                 auto it = distances.find(min);
-                matrix[i][j] = tolower(it->second->ch);
+                matrix[i][j] = it->second->ch;
 
+                int r = 80+10*it->second->ch;
+                int g = 10*it->second->ch;
+                int b = 180+10*it->second->ch;
+                im.setPixelColor(j, i, QColor::fromRgb(r % 255, g % 255, b % 255));
 //                printf("x=[%d], y=[%d] = %d\n", i,j, it->first);
             }
         }
     }
-
+//intptr_t a;
     print(SIZE, SIZE, (char*)matrix);
 
+    im.scaled(1000,1000).save("obrazek_rozdeleni.png");
 
     /*
 aaaaa.cccc
@@ -171,9 +181,14 @@ bbb.eeffff
 bbb.ffffFf
 */
 
+//    char matrix[SIZE][SIZE];
+    char *mmatrixx = new char[SIZE*SIZE];
+    memcpy(mmatrixx, matrix, SIZE*SIZE);
+    print(SIZE, SIZE, mmatrixx);
 
     int maxArea = 0;
     const sPoint *ppoint = nullptr;
+
     for(const auto &p : points)
     {
         std::list<sPoint> finder {p};
@@ -181,28 +196,33 @@ bbb.ffffFf
         bool infinite = false;
         while(finder.size() > 0)
         {
-            auto &p = finder.front();
+            auto poi = finder.front();
 
             std::list<sPoint> neighborhood;
-            neighborhood.push_back(sPoint {p.x-1, p.y-1});
-            neighborhood.push_back(sPoint {p.x  , p.y-1});
-            neighborhood.push_back(sPoint {p.x+1, p.y-1});
-            neighborhood.push_back(sPoint {p.x-1, p.y  });
-            neighborhood.push_back(sPoint {p.x  , p.y+1});
-            neighborhood.push_back(sPoint {p.x-1, p.y+1});
-            neighborhood.push_back(sPoint {p.x  , p.y+1});
-            neighborhood.push_back(sPoint {p.x+1, p.y+1});
+            neighborhood.push_back(sPoint {poi.x-1, poi.y-1});
+            neighborhood.push_back(sPoint {poi.x  , poi.y-1});
+            neighborhood.push_back(sPoint {poi.x+1, poi.y-1});
+            neighborhood.push_back(sPoint {poi.x-1, poi.y  });
+            neighborhood.push_back(sPoint {poi.x+1, poi.y  });
+            neighborhood.push_back(sPoint {poi.x-1, poi.y+1});
+            neighborhood.push_back(sPoint {poi.x  , poi.y+1});
+            neighborhood.push_back(sPoint {poi.x+1, poi.y+1});
 
+            finder.pop_front();
 
             for(auto &n : neighborhood)
             {
+                char chachar = *(mmatrixx + int(SIZE) * n.y +n.x);
                 if(!isLimit(n, SIZE))
                 {
                     infinite = true;
                     break;
                 }
-                if(tolower(matrix[n.y][n.x]) == tolower(p.ch))
+                else if(tolower(chachar) == tolower(p.ch))
                 {
+//                    printf("x=%d y=%d    %c\n", n.x, n.y, *(mmatrixx + int(SIZE) * n.y +n.x));
+//                    print(SIZE, SIZE, mmatrixx);
+                    *(mmatrixx + int(SIZE) * n.y +n.x) = 0/*'#'*/;
                     ++area;
                     finder.push_back(n);
                 }
@@ -212,16 +232,50 @@ bbb.ffffFf
                 break;
             }
 
-            finder.pop_front();
         }
-        printf("area %c = %d ... %s\n", p.ch, area, infinite ? "infinite" : "finite");
+//        print(SIZE, SIZE, mmatrixx);
+        printf("area %d = %d ... %s\n", p.ch, area, infinite ? "infinite" : "finite");
+        if(!infinite)
+        {
+            if(area > maxArea)
+            {
+                maxArea = area;
+                ppoint = &p;
+            }
+        }
     }
 
 
 
 
-//    printf("PART1: sumarum: %d\n", sumarum);
-//    printf("PART2: pocet=%d id=%d\n", ids.size(), *ids.begin());
+    printf("PART1: %d plocha %d\n", ppoint->ch, maxArea);
+
+    printf("\n\n\n");
+
+    int sizeRegion = 0;
+    for(int i = 0; i < SIZE; ++i)
+    {
+        for(int j = 0; j < SIZE; ++j)
+        {
+            int sum = 0;
+            for(const auto &p : points)
+            {
+                sum += p.manhatan({j,i});
+            }
+            if(sum < 10000)
+            {
+                matrix[i][j] = 255;
+                im.setPixelColor(j,i, Qt::magenta);
+                ++sizeRegion;
+            }
+        }
+    }
+
+    im.scaled(1000,1000).save("obrazek_region.png");
+    print(SIZE, SIZE, (char*)matrix);
+
+    printf("PART2: size region=%d \n", sizeRegion);
+
 
     return 0;
 }
