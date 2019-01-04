@@ -34,7 +34,6 @@ Thumbs.db
 *.rc
 /.qmake.cache
 /.qmake.stash
-.qmake.stash
 
 # qtcreator generated files
 *.pro.user*
@@ -72,5 +71,4 @@ Thumbs.db
 *.dll
 *.exe
 
-img
 *.png
