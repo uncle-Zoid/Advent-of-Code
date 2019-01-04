@@ -36,6 +36,7 @@ struct sNode
     sNode *parent;
     int countChilds;
     int countMetadata;
+    int value = -1;
 
     std::list<sNode *>::iterator it;
     std::list<sNode *> childs;
@@ -113,9 +114,47 @@ void sumTree(sNode *root, int &sum)
     }
 }
 
+void countValue(sNode *root)
+{
+    if (root == nullptr)
+    {
+        return;
+    }
+
+
+    if(root->childs.size() == 0)
+    {
+        root->value = std::accumulate(root->metadata.begin(), root->metadata.end(), 0);
+//        printf("node %d %d - %d\n", root->countChilds, root->countMetadata, root->value);
+    }
+    else
+    {
+        int sum = 0;
+        for(int i : root->metadata)
+        {
+            i -= 1;
+            if(i < root->childs.size())
+            {
+                auto it = root->childs.begin();
+                while(i--)it++;
+
+                if((*it)->value == -1)
+                {
+                    countValue(*it);
+                }
+
+                sum += (*it)->value;
+            }
+        }
+        root->value = sum;
+//        printf("node %d %d - %d\n", root->countChilds, root->countMetadata, root->value);
+    }
+}
+
 
 int main()
 {
+//    FILE *f = fopen("testinput.txt", "r");
     FILE *f = fopen("input.txt", "r");
     if(f == NULL)
     {
@@ -136,8 +175,7 @@ int main()
 
     auto *it = buffer;
     auto *tusom = root;
-    //2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2
-//    while (it != (buffer + size))
+
     do
     {
         tusom = addChild(tusom, it);
@@ -151,7 +189,23 @@ int main()
     int sum = 0;
     sumTree(root, sum);
 
-    printf("Suma: %d\n", sum);
+    printf("PART 1 : Suma: %d\n", sum);
 
+    countValue(root);
+
+    sum = 0;
+    for(int i : root->metadata)
+    {
+        i -= 1;
+        if(i < root->childs.size())
+        {
+            auto it = root->childs.begin();
+            while(i--)it++;
+
+            sum += (*it)->value;
+//            printf("node %d %d - %d\n", (*it)->countChilds, (*it)->countMetadata, (*it)->value);
+        }
+    }
+    printf("PART 2 : root node value %d\n", sum);
     return 0;
 }

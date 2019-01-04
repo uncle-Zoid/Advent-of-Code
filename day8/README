@@ -32,8 +32,6 @@ What is the sum of all metadata entries?
 
 Your puzzle answer was 38722.
 
-The first half of this puzzle is complete! It provides one gold star: *
-
 --- Part Two ---
 The second check is slightly more complicated: you need to find the value of the root node (A in the example above).
 
@@ -50,3 +48,7 @@ Node A has three metadata entries: 1, 1, and 2. The 1 references node A's first 
 So, in this example, the value of the root node is 66.
 
 What is the value of the root node?
+
+Your puzzle answer was 13935.
+
+Both parts of this puzzle are complete! They provide two gold stars: **
