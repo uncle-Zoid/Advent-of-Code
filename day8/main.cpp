@@ -7,6 +7,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <algorithm>
 
 #include <QImage>
 
@@ -25,30 +26,97 @@ size_t readline(FILE *f, char buffer[], size_t size, char delim = '\n')
     return read;
 }
 
+void seekSpace(char *&it)
+{
+    do{++it;}while(*it != ' ');
+}
+
 struct sNode
 {
+    sNode *parent;
     int countChilds;
     int countMetadata;
 
+    std::list<sNode *>::iterator it;
     std::list<sNode *> childs;
     std::list<int> metadata;
 
+    sNode (sNode *parent)
+        : parent        (parent)
+        , countChilds   (0)
+        , countMetadata (0)
+    {
+        it = childs.end();
+    }
+
+    sNode (sNode *parent, char *&it)
+        : parent    (parent)
+    {
+        countChilds   = atoi(it); seekSpace(it);
+        countMetadata = atoi(it); seekSpace(it);
+
+        this->it = childs.end();
+    }
 };
 
-void addChild(sNode *&root, int count)
+sNode* addChild(sNode *&root, char *&it)
 {
-    while(count)
+    if(root == nullptr)
     {
-        root->childs.emplace({});
-        -- count;
+        root = new sNode(root, it);
+    }
+    else
+    {
+        if(root->countChilds == root->childs.size())
+        {
+            for (int i = 0; i < root->countMetadata; ++i)
+            {
+                root->metadata.push_back(atoi(it));
+                seekSpace(it);
+            }
+            return root->parent;
+        }
+        else
+        {
+            auto *n = new sNode(root, it);
+            root->childs.push_back(n);
+            if(root->it == root->childs.end())
+            {
+                root->it = root->childs.begin();
+            }
+            return n;
+        }
+    }
+    return root;
+}
+
+
+void sumTree(sNode *root, int &sum)
+{
+    if (root == nullptr)
+    {
+        return;
+    }
+
+    if(root->it == root->childs.begin())
+    {
+        sum += std::accumulate(root->metadata.begin(), root->metadata.end(), 0);
+    }
+
+    if(root->it == root->childs.end())
+    {
+        sumTree(root->parent, sum);
+    }
+    else
+    {
+        sumTree(*(root->it++), sum);
     }
 }
 
 
-
 int main()
 {
-    FILE *f = fopen("testinput.txt", "r");
+    FILE *f = fopen("input.txt", "r");
     if(f == NULL)
     {
         printf("CANNOT OPEN");
@@ -63,36 +131,27 @@ int main()
     char *buffer = new char[size + 1]();
     fread(buffer, 1, size, f);
 
-    printf("'%s'\n", buffer);
+//    printf("'%s'\n", buffer);
 
 
     auto *it = buffer;
     auto *tusom = root;
-    while (it != (buffer + size))
+    //2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2
+//    while (it != (buffer + size))
+    do
     {
-        sNode *node = new sNode;
-        node->countChilds = atoi(it); it += 2;
-        node->countMetadata = atoi(it); it += 2;
-
-        if(node->countChilds == 0)
-        {
-            for (int i = 0; i < node->countMetadata; ++i)
-            {
-                node->metadata.push_back(atoi(it));
-                it += 2;
-            }
-        }
-
+        tusom = addChild(tusom, it);
         if(root == nullptr)
         {
-            root = node;
-        }
-        else
-        {
-
+            root = tusom;
         }
     }
+    while(tusom);
 
+    int sum = 0;
+    sumTree(root, sum);
+
+    printf("Suma: %d\n", sum);
 
     return 0;
 }
