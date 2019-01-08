@@ -7,6 +7,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <fstream>
 
 #include <QImage>
 
@@ -40,29 +41,21 @@ struct sRule
         {
             return false;
         }
-//        list<char>::iterator itt = it;
-
-//        char ch = *it; frombeg = std::distance(pots.begin(), it);
         --it;
-//        ch = *it; frombeg = std::distance(pots.begin(), it);
         --it;
-//        ch = *it; frombeg = std::distance(pots.begin(), it);
-
         for(auto r : rules)
         {
-//            ch = *it; frombeg = std::distance(pots.begin(), it);
             if(r != *it)
             {
                 return false;
             }
             ++it;
         }
-
-//        *itt = result;
         return true;
     }
 };
-static int zero = 0;
+static int64_t zero = 0;
+static int64_t growStep = 0;
 
 
 size_t readline(FILE *f, char buffer[], size_t size, char delim = '\n')
@@ -79,26 +72,25 @@ size_t readline(FILE *f, char buffer[], size_t size, char delim = '\n')
     buffer[read] = '\0';
     return read;
 }
-#include <fstream>
+
 void print(list<char> &pots)
 {
 //    ofstream f("file", ios::app);
-    int suma = 0;
+    int64_t suma = 0;
     for (auto it = pots.begin(); it != pots.end(); ++it)
-//    for(const auto &a : pots)
     {
 //        printf("%c ", *it);
 //        f << *it << " ";
         if(*it == '#')
         {
-//            int d = distance(pots.begin(), it);
+            auto d = distance(pots.begin(), it);
 //            printf("[%d %d]", d, d-zero);
-            suma += (distance(pots.begin(), it) - zero);
+            suma += d - zero;
         }
     }
 //    f << "\n";
 //    f.close();
-    printf("\tzero=%d\tsum=%d, size=%d\n", zero, suma, pots.size());
+    printf("\tzero=%-15lld\tsum=%-15lld, size=%-5lld growstrep=%-5lld\n", zero, suma, pots.size(), growStep);
 }
 
 void grow(list<char> &pots)
@@ -106,54 +98,34 @@ void grow(list<char> &pots)
 
     auto itbeg = pots.begin();
     auto itend = pots.rbegin();
+    growStep = -3;
     while(*itbeg == '.')
     {
         itbeg = pots.erase(itbeg);
-        --zero;
+        -- zero;
+        ++ growStep;
     }
 
-    while(*itend == '.')
+//    while(*itend++ == '.') ++em;
+//    {
+//        std::advance(itend, 1);
+//        pots.erase( itend.base() );
+//    }
+    int em = 0;
+    while(*itend++ == '.') ++em;
+    if(em < 3)
     {
-        std::advance(itend, 1);
-        pots.erase( itend.base() );
+        for(int i = 0; i < 3 - em; ++i)
+        {
+            pots.push_back('.');
+        }
     }
     for(int i = 0; i < 3; ++i)
     {
         pots.push_front('.');
-        pots.push_back('.');
+//        pots.push_back('.');
     }
     zero += 3;
-    return;
-
-    bool dogrowB = false;
-    bool dogrowE = false;
-    for(int i = 0; i < 3; ++i)
-    {
-        if (*itbeg == '#')
-        {
-            dogrowB = true;
-        }
-        if (*itend == '#')
-        {
-            dogrowE = true;
-        }
-        ++itbeg;
-        ++itend;
-    }
-
-    if(dogrowB)
-    {
-        pots.push_front('.');
-        pots.push_front('.');
-        pots.push_front('.');
-        zero += 3;
-    }
-    if(dogrowE)
-    {
-        pots.push_back('.');
-        pots.push_back('.');
-        pots.push_back('.');
-    }
 }
 
 void applyRule(list<char> &pots, list<sRule> &rules, list<char> &outpots)
@@ -175,17 +147,33 @@ void applyRule(list<char> &pots, list<sRule> &rules, list<char> &outpots)
         }
         if(!match)
         {
-//            printf("no rule match\n");
             outpots.push_back('.');
-//            *it = '.';
         }
     }
 }
+bool comparer(list<char> &potsold, list<char> &potsnew)
+{
+    if(potsold.size() != potsnew.size())
+    {
+        return false;
+    }
 
+    auto ito = potsold.begin(), itn = potsnew.begin();
+
+    while(*ito++ == '.');
+    while(*itn++ == '.');
+
+    for(; ito != potsold.end() || itn != potsnew.end() ; ++itn, ++ito)
+    {
+        if(*ito != *itn)
+            return false;
+    }
+    return true;
+}
 int main()
 {
-    ofstream ff("file");
-    ff.close();
+//    ofstream ff("file");
+//    ff.close();
 //    FILE *f = fopen("testinput.txt", "r");
     FILE *f = fopen("input.txt", "r");
     if(f == NULL)
@@ -222,20 +210,27 @@ int main()
     grow(pots);
     print(pots);
     uint64_t MAX = 50000000000;
-    for(uint64_t i = 0; i < MAX; ++i)
+    list<char> old;
+    for(uint64_t i = 1; i < MAX; ++i)
     {
         list<char> newgenpots;
 
         grow(pots);
         applyRule(pots, rules, newgenpots);
         pots = newgenpots;
-        if(i % 1000 == 0)
-        {
-            printf("%d: ", i);
-            print(pots);
-        }
-    }
 
+        printf("%d: ", i);
+        print(pots);
+
+
+        if(comparer(pots, old) && i > 10)
+        {
+            zero -= (MAX - i) * growStep;
+            print(pots);
+            break;
+        }
+        old = pots;
+    }
 
     return 0;
 }

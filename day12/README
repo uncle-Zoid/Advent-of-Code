@@ -1,35 +1,75 @@
---- Day 7: The Sum of Its Parts ---
-You find yourself standing on a snow-covered coastline; apparently, you landed a little off course. The region is too hilly to see the North Pole from here, but you do spot some Elves that seem to be trying to unpack something that washed ashore. It's quite cold out, so you decide to risk creating a paradox by asking them for directions.
+--- Day 12: Subterranean Sustainability ---
+The year 518 is significantly more underground than your history books implied. Either that, or you've arrived in a vast cavern network under the North Pole.
 
-"Oh, are you the search party?" Somehow, you can understand whatever Elves from the year 1018 speak; you assume it's Ancient Nordic Elvish. Could the device on your wrist also be a translator? "Those clothes don't look very warm; take this." They hand you a heavy coat.
+After exploring a little, you discover a long tunnel that contains a row of small pots as far as you can see to your left and right. A few of them contain plants - someone is trying to grow things in these geothermally-heated caves.
 
-"We do need to find our way back to the North Pole, but we have higher priorities at the moment. You see, believe it or not, this box contains something that will solve all of Santa's transportation problems - at least, that's what it looks like from the pictures in the instructions." It doesn't seem like they can read whatever language it's in, but you can: "Sleigh kit. Some assembly required."
+The pots are numbered, with 0 in front of you. To the left, the pots are numbered -1, -2, -3, and so on; to the right, 1, 2, 3.... Your puzzle input contains a list of pots from 0 to the right and whether they do (#) or do not (.) currently contain a plant, the initial state. (No other pots currently contain plants.) For example, an initial state of #..##.... indicates that pots 0, 3, and 4 currently contain plants.
 
-"'Sleigh'? What a wonderful name! You must help us assemble this 'sleigh' at once!" They start excitedly pulling more parts out of the box.
+Your puzzle input also contains some notes you find on a nearby table: someone has been trying to figure out how these plants spread to nearby pots. Based on the notes, for each generation of plants, a given pot has or does not have a plant based on whether that pot (and the two pots on either side of it) had a plant in the last generation. These are written as LLCRR => N, where L are pots to the left, C is the current pot being considered, R are the pots to the right, and N is whether the current pot will have a plant in the next generation. For example:
 
-The instructions specify a series of steps and requirements about which steps must be finished before others can begin (your puzzle input). Each step is designated by a single letter. For example, suppose you have the following instructions:
+A note like ..#.. => . means that a pot that contains a plant but with no plants within two pots of it will not have a plant in it during the next generation.
+A note like ##.## => . means that an empty pot with two plants on each side of it will remain empty in the next generation.
+A note like .##.# => # means that a pot has a plant in a given generation if, in the previous generation, there were plants in that pot, the one immediately to the left, and the one two pots to the right, but not in the ones immediately to the right and two to the left.
+It's not clear what these plants are for, but you're sure it's important, so you'd like to make sure the current configuration of plants is sustainable by determining what will happen after 20 generations.
 
-Step C must be finished before step A can begin.
-Step C must be finished before step F can begin.
-Step A must be finished before step B can begin.
-Step A must be finished before step D can begin.
-Step B must be finished before step E can begin.
-Step D must be finished before step E can begin.
-Step F must be finished before step E can begin.
-Visually, these requirements look like this:
+For example, given the following input:
 
+initial state: #..#.#..##......###...###
 
-  -->A--->B--
- /    \      \
-C      -->D----->E
- \           /
-  ---->F-----
-Your first goal is to determine the order in which the steps should be completed. If more than one step is ready, choose the step which is first alphabetically. In this example, the steps would be completed as follows:
+...## => #
+..#.. => #
+.#... => #
+.#.#. => #
+.#.## => #
+.##.. => #
+.#### => #
+#.#.# => #
+#.### => #
+##.#. => #
+##.## => #
+###.. => #
+###.# => #
+####. => #
+For brevity, in this example, only the combinations which do produce a plant are listed. (Your input includes all possible combinations.) Then, the next 20 generations will look like this:
 
-Only C is available, and so it is done first.
-Next, both A and F are available. A is first alphabetically, so it is done next.
-Then, even though F was available earlier, steps B and D are now also available, and B is the first alphabetically of the three.
-After that, only D and F are available. E is not available because only some of its prerequisites are complete. Therefore, D is completed next.
-F is the only choice, so it is done next.
-Finally, E is completed.
-So, in this example, the correct order is CABDFE.
+                 1         2         3     
+       0         0         0         0     
+ 0: ...#..#.#..##......###...###...........
+ 1: ...#...#....#.....#..#..#..#...........
+ 2: ...##..##...##....#..#..#..##..........
+ 3: ..#.#...#..#.#....#..#..#...#..........
+ 4: ...#.#..#...#.#...#..#..##..##.........
+ 5: ....#...##...#.#..#..#...#...#.........
+ 6: ....##.#.#....#...#..##..##..##........
+ 7: ...#..###.#...##..#...#...#...#........
+ 8: ...#....##.#.#.#..##..##..##..##.......
+ 9: ...##..#..#####....#...#...#...#.......
+10: ..#.#..#...#.##....##..##..##..##......
+11: ...#...##...#.#...#.#...#...#...#......
+12: ...##.#.#....#.#...#.#..##..##..##.....
+13: ..#..###.#....#.#...#....#...#...#.....
+14: ..#....##.#....#.#..##...##..##..##....
+15: ..##..#..#.#....#....#..#.#...#...#....
+16: .#.#..#...#.#...##...#...#.#..##..##...
+17: ..#...##...#.#.#.#...##...#....#...#...
+18: ..##.#.#....#####.#.#.#...##...##..##..
+19: .#..###.#..#.#.#######.#.#.#..#.#...#..
+20: .#....##....#####...#######....#.#..##.
+The generation is shown along the left, where 0 is the initial state. The pot numbers are shown along the top, where 0 labels the center pot, negative-numbered pots extend to the left, and positive pots extend toward the right. Remember, the initial state begins at pot 0, which is not the leftmost pot used in this example.
+
+After one generation, only seven plants remain. The one in pot 0 matched the rule looking for ..#.., the one in pot 4 matched the rule looking for .#.#., pot 9 matched .##.., and so on.
+
+In this example, after 20 generations, the pots shown as # contain plants, the furthest left of which is pot -2, and the furthest right of which is pot 34. Adding up all the numbers of plant-containing pots after the 20th generation produces 325.
+
+After 20 generations, what is the sum of the numbers of all pots which contain a plant?
+
+Your puzzle answer was 2995.
+
+--- Part Two ---
+You realize that 20 generations aren't enough. After all, these plants will need to last another 1500 years to even reach your timeline, not to mention your future.
+
+After fifty billion (50000000000) generations, what is the sum of the numbers of all pots which contain a plant?
+
+Your puzzle answer was 3650000000377.
+
+Both parts of this puzzle are complete! They provide two gold stars: **
